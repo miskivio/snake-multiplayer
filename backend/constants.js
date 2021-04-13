@@ -1,7 +1,7 @@
-// ms updating
+// updating
 const FRAME_RATE = 10
 
-// default size of grids
+// grid size
 const GRID_SIZE = 20
 
 module.exports = {

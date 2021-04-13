@@ -20,7 +20,7 @@ const gameState = {
             x: 3,
             y:10
         },
-        vel: {
+        quick: {
             x: 1,
             y: 0
         },
@@ -116,7 +116,6 @@ const handleGameState = (gameState) => {
         paintGame(gameState)
     })
 }
-
 
 // sockets on
 
