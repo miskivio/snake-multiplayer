@@ -6,28 +6,46 @@ const FOOD_COLOR = '#33d69d'
 const socket = io('http://localhost:5000')
 
 const gameScreen = document.getElementById('gameScreen')
+const initialScreen = document.getElementById('initialScreen')
+const newGameButton = document.getElementById('newGameButton')
+const joinGameButton = document.getElementById('joinGameButton')
+const gameCodeInput = document.getElementById('gameCodeInput')
 
-console.log('js is working')
+newGameButton.addEventListener('click', newGame)
+joinGameButton.addEventListener('click', joinGame)
+
+const newGame = () => {
+    socket.emit('newGame')
+        //calling initialization
+        init()
+}
+
+const joinGame = () => {
+    const code = gameCodeInput.value
+    socket.emit('joinGame', code)
+    init()
+}
 
 //init vars for access in our functions
 let canvas
 let ctx
+let playerNumber
 
 // inial state
 const gameState = {
     player: {
         pos: {
             x: 3,
-            y:10
+            y: 0
         },
         quick: {
             x: 1,
             y: 0
         },
         snake: [
-            {x: 0, y: 0},
-            {x: 1, y: 0},
-            {x: 2, y: 0},
+            {x: 3, y: 0},
+            {x: 4, y: 0},
+            {x: 5, y: 0},
         ]
     },
     food: {
@@ -37,7 +55,13 @@ const gameState = {
     gridSize: 20
 }
 
+
+
 const init = () => {
+    // hide start amd show game screen when the game starts
+    initialScreen.style.display = 'none'
+    gameScreen.style.display = 'block'
+
     canvas = document.getElementById('canvas')
     ctx = canvas.getContext("2d");
 
@@ -49,11 +73,14 @@ const init = () => {
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // keydown actions
-    // const keydown = (e) =>{
-    //     console.log(e.keyCode)
-    // }
-    // document.addEventListener('keydown', keydown)   
+   
+    document.addEventListener('keydown', keydown)   
+}
+
+// keydown actions
+const keydown = (e) =>{
+    console.log(e.keyCode)
+    socket.emit('keydown', e.keyCode)
 }
 
 
@@ -95,8 +122,7 @@ const paintGame = (state) => {
     paintPlayer(state.player, size, SNAKE_COLOR)
 }
 
-    //calling initialization
-    init()
+
 
     //calling our paint game and put in our state object
     paintGame(gameState, ctx, canvas)
@@ -104,17 +130,20 @@ const paintGame = (state) => {
 
 
 // handles of sockets
-const handleInit = (msg) => {
-    console.log(msg)
+const handleInit = (number) => {
+    playerNumber = number
 }
 
 const handleGameState = (gameState) => {
     gameState = JSON.parse(gameState)
-
     // do animation and repainting in the next frame
     requestAnimationFrame(()=>{
         paintGame(gameState)
     })
+}
+
+const handleGameOver = () => {
+    alert('Game Over')
 }
 
 // sockets on
@@ -123,3 +152,6 @@ socket.on('init', handleInit)
 
 // listeting for changin our state from server
 socket.on('gameState', handleGameState)
+
+socket.on('gameOver', handleGameOver)
+

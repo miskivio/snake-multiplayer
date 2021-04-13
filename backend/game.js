@@ -6,16 +6,16 @@ const createGameState = () => {
         player: {
             pos: {
                 x: 3,
-                y:10
+                y: 1
             },
             quick: {
                 x: 1,
                 y: 0
             },
             snake: [
-                {x: 0, y: 0},
-                {x: 1, y: 0},
-                {x: 2, y: 0},
+                {x: 3, y: 0},
+                {x: 4, y: 0},
+                {x: 5, y: 0},
             ]
         },
         food: {
@@ -25,6 +25,8 @@ const createGameState = () => {
         gridSize: GRID_SIZE
     }
 } 
+
+
 
 const gameLoop = (state) => {
     if(!state) {
@@ -91,7 +93,34 @@ const randomFood = (state) => {
     state.food = food
 }
 
+// directions 
+const getUpdatedQuick = (keyCode) => {
+    switch(keyCode) {
+        case 37: {
+            return {x: -1, y:0}
+        }
+        case 38: {
+            return {x: 0, y: -1}
+        }
+        case 39: {
+            return {x: 1, y: 0}
+        }
+        case 40: {
+            return {x: 0, y: 1}
+        }
+    }
+}
+
+const initGame = () => {
+    const state = createGameState()
+
+    randomFood(state)
+    return state
+}
+
 module.exports = {
+    initGame,
     createGameState,
-    gameLoop
+    gameLoop,
+    getUpdatedQuick
 }
