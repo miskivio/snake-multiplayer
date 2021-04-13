@@ -57,7 +57,7 @@ const init = () => {
 }
 
 
-const paintGame = (state, ctx, canvas) => {
+const paintGame = (state) => {
 
     // paint our game border
     ctx.fillStyle = BG_COLOR

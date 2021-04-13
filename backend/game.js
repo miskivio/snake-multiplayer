@@ -46,14 +46,14 @@ const gameLoop = (state) => {
             return 2;
     }
     // checking if food position equal to snake position
-    if(state.food.x === player.pos.x && state.food.x === player.pos.x) {
+    if(state.food.x === playerOne.pos.x && state.food.y === playerOne.pos.y) {
         // push to current position player
-        player.snake.push({...playerOne.pos})
+        playerOne.snake.push({...playerOne.pos})
 
         playerOne.pos.x += playerOne.quick.x
         playerOne.pos.y += playerOne.quick.y
 
-        randomFood()
+        randomFood(state)
     }
 
     //checking if quick equal to position of snake 
