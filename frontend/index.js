@@ -1,3 +1,6 @@
+const { errorMonitor } = require("node:events")
+const { reset } = require("nodemon")
+
 const BG_COLOR = '#c0c0c0'
 const SNAKE_COLOR = '#876465'
 const FOOD_COLOR = '#33d69d'
@@ -10,6 +13,7 @@ const initialScreen = document.getElementById('initialScreen')
 const newGameButton = document.getElementById('newGameButton')
 const joinGameButton = document.getElementById('joinGameButton')
 const gameCodeInput = document.getElementById('gameCodeInput')
+const gameCodeDisplay = document.getElementById('gameCodeDisplay')
 
 newGameButton.addEventListener('click', newGame)
 joinGameButton.addEventListener('click', joinGame)
@@ -55,8 +59,6 @@ const gameState = {
     gridSize: 20
 }
 
-
-
 const init = () => {
     // hide start amd show game screen when the game starts
     initialScreen.style.display = 'none'
@@ -82,7 +84,6 @@ const keydown = (e) =>{
     console.log(e.keyCode)
     socket.emit('keydown', e.keyCode)
 }
-
 
 const paintGame = (state) => {
 
@@ -122,12 +123,8 @@ const paintGame = (state) => {
     paintPlayer(state.player, size, SNAKE_COLOR)
 }
 
-
-
     //calling our paint game and put in our state object
     paintGame(gameState, ctx, canvas)
-
-
 
 // handles of sockets
 const handleInit = (number) => {
@@ -146,12 +143,38 @@ const handleGameOver = () => {
     alert('Game Over')
 }
 
-// sockets on
+const handleGameCode = (gameCode) => {
+    gameCodeDisplay.innerText = gameCode
+}
 
+const handleGameDoesntExists = () => {
+    reset()
+    alert('Game doesnt exists')
+}
+
+const handleTooManyPlayers = () => {
+    reset()
+    alert('Game is already started')
+}
+
+const reset = () => {
+    playerNumber = null
+    gameCodeInput.value = ""
+    gameCodeDisplay.innerText = ""
+    initialScreen.style.display = "block"
+    gameScreen.style.display = "none"
+}
+
+// sockets 
 socket.on('init', handleInit)
-
 // listeting for changin our state from server
 socket.on('gameState', handleGameState)
-
+// listening game over or not
 socket.on('gameOver', handleGameOver)
 
+socket.on('gameCode', handleGameCode)
+
+socket.on('gameDoesntExists', handleGameDoesntExists)
+
+
+socket.on('tooManyPlayers', handleTooManyPlayers)
