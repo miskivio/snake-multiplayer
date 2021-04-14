@@ -1,108 +1,102 @@
-const io = require('socket.io')()
-const {createGameState, gameLoop, getUpdatedQuick, initGame} = require('./game')
-const {FRAME_RATE} = require('./constants')
+const io = require('socket.io')();
+const { initGame, gameLoop, getUpdatedVelocity } = require('./game');
+const { FRAME_RATE } = require('./constants');
+const { makeId } = require('./utils');
 
-const state = {}
-const clientRooms = {}
-
-const startGameInterval = (roomName) => {
-    const intervalId = setInterval(()=>{
-        console.log('interval')
-        const winner = gameLoop(state[roomName])
-        if(!winner) {
-            emitGameState(roomName, state[roomName])
-        } else {
-            emitGameOver(roomName, winner)
-            state[roomName] = null
-            clearInterval(intervalId)
-        }
-    }, 1000 / FRAME_RATE)
-}
-
-const emitGameState = (roomName, state) => {
-    io.sockets.in(roomName)
-    .emit('gameState', JSON.stringify(state))
-}
-
-const emitGameOver = (roomName, state) => {
-    io.sockets.in(roomName)
-    .emit('gameOver', JSON.stringify({winner}))
-}
+const state = {};
+const clientRooms = {};
 
 io.on('connection', client => {
 
+  client.on('keydown', handleKeydown);
+  client.on('newGame', handleNewGame);
+  client.on('joinGame', handleJoinGame);
 
-    const handleNewGame = () => {
-        let roomName = makeId(5)
-        clientRooms[client.id] = roomName
-        client.emit('gameCode', roomName)
+  function handleJoinGame(roomName) {
+    const room = io.sockets.adapter.rooms[roomName];
 
-        //get state
-        state[roomName] = initGame()
-
-        client.join(roomName)
-        client.number = 1
-        client.emit('init', 1)
+    let allUsers;
+    if (room) {
+      allUsers = room.sockets;
     }
 
-    const handleKeydown = (keyCode) => {
-        try {
-            console.log(keyCode)
-            keyCode = parseInt(keyCode)
-        } catch (error) {
-            console.error(error)
-            return
-        }
-
-        const quick = getUpdatedQuick(keyCode)
-        console.log(quick)
-
-        // changing quick state
-        if(quick) {
-            state.player.quick = quick
-        }
+    let numClients = 0;
+    if (allUsers) {
+      numClients = Object.keys(allUsers).length;
     }
 
-    const handleJoinGame = (gameCode) => {
-       const room = io.sockets.adapter.rooms(gameCode) 
-
-       let allUsers
-
-       if(room) {
-           allUsers = room.sockets
-       }
-
-       let numOfClients = 0
-
-       if(allUsers) {
-           numOfclients = Object.keys(allUsers).length
-       }
-
-       if(numOfClients === 0) {
-           client.emit('gameDoesntExists')
-           return
-       } else if (numOfClients > 1) {
-           client.emit('tooManyPlayers')
-           return
-       }
-
-       clientRooms[client.id] = gameCode
-
-       client.join(gameCode)
-       client.number = 2
-       client.emit('init', 2)
-
-       startGameInterval(gameCode)
+    if (numClients === 0) {
+      client.emit('unknownCode');
+      return;
+    } else if (numClients > 1) {
+      client.emit('tooManyPlayers');
+      return;
     }
 
-     // getting key from the frontend
-     client.on('keydown', handleKeydown)
+    clientRooms[client.id] = roomName;
 
-     client.on('newGame', handleNewGame)
+    client.join(roomName);
+    client.number = 2;
+    client.emit('init', 2);
+    
+    startGameInterval(roomName);
+  }
 
-     client.on('joinGame', handleJoinGame)
+  function handleNewGame() {
+    let roomName = makeId(5);
+    clientRooms[client.id] = roomName;
+    client.emit('gameCode', roomName);
 
-   
-})
+    state[roomName] = initGame();
 
-io.listen(5000)
+    client.join(roomName);
+    client.number = 1;
+    client.emit('init', 1);
+  }
+
+  function handleKeydown(keyCode) {
+    const roomName = clientRooms[client.id];
+    if (!roomName) {
+      return;
+    }
+    try {
+      keyCode = parseInt(keyCode);
+    } catch(e) {
+      console.error(e);
+      return;
+    }
+
+    const vel = getUpdatedVelocity(keyCode);
+
+    if (vel) {
+      state[roomName].players[client.number - 1].vel = vel;
+    }
+  }
+});
+
+function startGameInterval(roomName) {
+  const intervalId = setInterval(() => {
+    const winner = gameLoop(state[roomName]);
+    
+    if (!winner) {
+      emitGameState(roomName, state[roomName])
+    } else {
+      emitGameOver(roomName, winner);
+      state[roomName] = null;
+      clearInterval(intervalId);
+    }
+  }, 1000 / FRAME_RATE);
+}
+
+function emitGameState(room, gameState) {
+  // Send this event to everyone in the room.
+  io.sockets.in(room)
+    .emit('gameState', JSON.stringify(gameState));
+}
+
+function emitGameOver(room, winner) {
+  io.sockets.in(room)
+    .emit('gameOver', JSON.stringify({ winner }));
+}
+
+io.listen(5000);

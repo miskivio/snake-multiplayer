@@ -1,180 +1,130 @@
-const { errorMonitor } = require("node:events")
-const { reset } = require("nodemon")
+const BG_COLOUR = '#231f20';
+const SNAKE_COLOUR = '#c2c2c2';
+const FOOD_COLOUR = '#e66916';
 
-const BG_COLOR = '#c0c0c0'
-const SNAKE_COLOR = '#876465'
-const FOOD_COLOR = '#33d69d'
+const socket = io('https://sleepy-island-33889.herokuapp.com/');
 
-// init socket
-const socket = io('http://localhost:5000')
+socket.on('init', handleInit);
+socket.on('gameState', handleGameState);
+socket.on('gameOver', handleGameOver);
+socket.on('gameCode', handleGameCode);
+socket.on('unknownCode', handleUnknownCode);
+socket.on('tooManyPlayers', handleTooManyPlayers);
 
-const gameScreen = document.getElementById('gameScreen')
-const initialScreen = document.getElementById('initialScreen')
-const newGameButton = document.getElementById('newGameButton')
-const joinGameButton = document.getElementById('joinGameButton')
-const gameCodeInput = document.getElementById('gameCodeInput')
-const gameCodeDisplay = document.getElementById('gameCodeDisplay')
+const gameScreen = document.getElementById('gameScreen');
+const initialScreen = document.getElementById('initialScreen');
+const newGameBtn = document.getElementById('newGameButton');
+const joinGameBtn = document.getElementById('joinGameButton');
+const gameCodeInput = document.getElementById('gameCodeInput');
+const gameCodeDisplay = document.getElementById('gameCodeDisplay');
 
-newGameButton.addEventListener('click', newGame)
-joinGameButton.addEventListener('click', joinGame)
+newGameBtn.addEventListener('click', newGame);
+joinGameBtn.addEventListener('click', joinGame);
 
-const newGame = () => {
-    socket.emit('newGame')
-        //calling initialization
-        init()
+
+function newGame() {
+  socket.emit('newGame');
+  init();
 }
 
-const joinGame = () => {
-    const code = gameCodeInput.value
-    socket.emit('joinGame', code)
-    init()
+function joinGame() {
+  const code = gameCodeInput.value;
+  socket.emit('joinGame', code);
+  init();
 }
 
-//init vars for access in our functions
-let canvas
-let ctx
-let playerNumber
+let canvas, ctx;
+let playerNumber;
+let gameActive = false;
 
-// inial state
-const gameState = {
-    player: {
-        pos: {
-            x: 3,
-            y: 0
-        },
-        quick: {
-            x: 1,
-            y: 0
-        },
-        snake: [
-            {x: 3, y: 0},
-            {x: 4, y: 0},
-            {x: 5, y: 0},
-        ]
-    },
-    food: {
-        x:7,
-        y:7
-    },
-    gridSize: 20
+function init() {
+  initialScreen.style.display = "none";
+  gameScreen.style.display = "block";
+
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+
+  canvas.width = canvas.height = 600;
+
+  ctx.fillStyle = BG_COLOUR;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  document.addEventListener('keydown', keydown);
+  gameActive = true;
 }
 
-const init = () => {
-    // hide start amd show game screen when the game starts
-    initialScreen.style.display = 'none'
-    gameScreen.style.display = 'block'
-
-    canvas = document.getElementById('canvas')
-    ctx = canvas.getContext("2d");
-
-    // inits size of canvas 
-    canvas.width  = 600
-    canvas.height = 600
-   
-    // fill bg color of canvas
-    ctx.fillStyle = BG_COLOR;
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-   
-    document.addEventListener('keydown', keydown)   
+function keydown(e) {
+  socket.emit('keydown', e.keyCode);
 }
 
-// keydown actions
-const keydown = (e) =>{
-    console.log(e.keyCode)
-    socket.emit('keydown', e.keyCode)
+function paintGame(state) {
+  ctx.fillStyle = BG_COLOUR;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const food = state.food;
+  const gridsize = state.gridsize;
+  const size = canvas.width / gridsize;
+
+  ctx.fillStyle = FOOD_COLOUR;
+  ctx.fillRect(food.x * size, food.y * size, size, size);
+
+  paintPlayer(state.players[0], size, SNAKE_COLOUR);
+  paintPlayer(state.players[1], size, 'red');
 }
 
-const paintGame = (state) => {
+function paintPlayer(playerState, size, colour) {
+  const snake = playerState.snake;
 
-    // paint our game border
-    ctx.fillStyle = BG_COLOR
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // get our state variables
-    const food = state.food
-    const gridSize = state.gridSize
-    const size = canvas.width / gridSize
-
-    // color and filling cell of food
-    ctx.fillStyle = FOOD_COLOR
-    ctx.fillRect(food.x * size, food.y * size, size, size)  
-
-    //paintPlayer function which contains state, size and color props
-    const paintPlayer = (state, size, color) => {
-
-    // get our state of player 
-    const snake = state.snake
-
-    // paint our each cell of snake
-    for(let cell of snake) {
-
-    // get our color from props
-    ctx.fillStyle = color
-
-    // filling context
-    ctx.fillRect(cell.x * size, cell.y * size, size, size)
-
-        }
-    }
-
-    /* calling our paint game and put in porps like state of our player, 
-     size and color */
-    paintPlayer(state.player, size, SNAKE_COLOR)
+  ctx.fillStyle = colour;
+  for (let cell of snake) {
+    ctx.fillRect(cell.x * size, cell.y * size, size, size);
+  }
 }
 
-    //calling our paint game and put in our state object
-    paintGame(gameState, ctx, canvas)
-
-// handles of sockets
-const handleInit = (number) => {
-    playerNumber = number
+function handleInit(number) {
+  playerNumber = number;
 }
 
-const handleGameState = (gameState) => {
-    gameState = JSON.parse(gameState)
-    // do animation and repainting in the next frame
-    requestAnimationFrame(()=>{
-        paintGame(gameState)
-    })
+function handleGameState(gameState) {
+  if (!gameActive) {
+    return;
+  }
+  gameState = JSON.parse(gameState);
+  requestAnimationFrame(() => paintGame(gameState));
 }
 
-const handleGameOver = () => {
-    alert('Game Over')
+function handleGameOver(data) {
+  if (!gameActive) {
+    return;
+  }
+  data = JSON.parse(data);
+
+  gameActive = false;
+
+  if (data.winner === playerNumber) {
+    alert('You Win!');
+  } else {
+    alert('You Lose :(');
+  }
 }
 
-const handleGameCode = (gameCode) => {
-    gameCodeDisplay.innerText = gameCode
+function handleGameCode(gameCode) {
+  gameCodeDisplay.innerText = gameCode;
 }
 
-const handleGameDoesntExists = () => {
-    reset()
-    alert('Game doesnt exists')
+function handleUnknownCode() {
+  reset();
+  alert('Unknown Game Code')
 }
 
-const handleTooManyPlayers = () => {
-    reset()
-    alert('Game is already started')
+function handleTooManyPlayers() {
+  reset();
+  alert('This game is already in progress');
 }
 
-const reset = () => {
-    playerNumber = null
-    gameCodeInput.value = ""
-    gameCodeDisplay.innerText = ""
-    initialScreen.style.display = "block"
-    gameScreen.style.display = "none"
+function reset() {
+  playerNumber = null;
+  gameCodeInput.value = '';
+  initialScreen.style.display = "block";
+  gameScreen.style.display = "none";
 }
-
-// sockets 
-socket.on('init', handleInit)
-// listeting for changin our state from server
-socket.on('gameState', handleGameState)
-// listening game over or not
-socket.on('gameOver', handleGameOver)
-
-socket.on('gameCode', handleGameCode)
-
-socket.on('gameDoesntExists', handleGameDoesntExists)
-
-
-socket.on('tooManyPlayers', handleTooManyPlayers)
